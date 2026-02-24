@@ -32,45 +32,17 @@ export class Bridge {
     
     this.matrix = new MatrixClient(config);
     await this.matrix.start((sender, body) => {
-      if (body.startsWith("/")) {
-        this.handleCommand(body);
-      } else {
-        this.io.emit("matrix_message", { sender, body });
-      }
+      // Forward all messages (including commands) to OpenClaw frontend without filtering
+      this.io.emit("matrix_message", { sender, body });
     });
-  }
-
-  private async handleCommand(body: string) {
-    const [command, ...args] = body.slice(1).split(" ");
-    
-    switch (command.toLowerCase()) {
-      case "help":
-        await this.matrix?.sendMessage(
-          "Available Commands:\n/help - Show this message\n/status - Check plugin status\n/ping - Test connectivity\n/about - About OpenClaw Matrix",
-          "m.notice",
-          "<h3>Available Commands</h3><ul><li><b>/help</b> - Show this message</li><li><b>/status</b> - Check plugin status</li><li><b>/ping</b> - Test connectivity</li><li><b>/about</b> - About OpenClaw Matrix</li></ul>"
-        );
-        break;
-      case "status":
-        const status = this.isMatrixConnected() ? "🟢 Connected" : "🔴 Disconnected";
-        await this.matrix?.sendMessage(`Status: ${status}`, "m.notice");
-        break;
-      case "ping":
-        await this.matrix?.sendMessage("🏓 Pong!", "m.notice");
-        break;
-      case "about":
-        await this.matrix?.sendMessage(
-          "OpenClaw Matrix Plugin v1.0.0\nA secure communication bridge for OpenClaw.",
-          "m.notice",
-          "<b>OpenClaw Matrix Plugin v1.0.0</b><br/>A secure communication bridge for OpenClaw."
-        );
-        break;
-      default:
-        await this.matrix?.sendMessage(`Unknown command: /${command}. Type /help for a list of commands.`, "m.notice");
-    }
   }
 
   isMatrixConnected() {
     return !!this.matrix;
+  }
+
+  async createPrivateChat(userId: string) {
+    if (!this.matrix) throw new Error("Matrix not connected");
+    return await this.matrix.createPrivateRoom(userId);
   }
 }

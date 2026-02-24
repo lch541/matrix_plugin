@@ -56,4 +56,14 @@ export class MatrixClient {
   async sendTyping(isTyping: boolean) {
     return this.client?.sendTyping(this.config.roomId, isTyping, isTyping ? 30000 : 0);
   }
+
+  async createPrivateRoom(userId: string) {
+    if (!this.client) throw new Error("Matrix client not initialized");
+    const response = await this.client.createRoom({
+      invite: [userId],
+      preset: "trusted_private_chat" as any,
+      is_direct: true,
+    });
+    return response.room_id;
+  }
 }

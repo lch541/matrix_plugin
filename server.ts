@@ -16,7 +16,13 @@ const io = new Server(httpServer, { cors: { origin: "*" } });
 const bridge = new Bridge(io);
 
 const PORT = 3000;
-const CONFIG_FILE = path.join(process.cwd(), "matrix_config.md");
+const CONFIG_DIR = path.join(process.cwd(), "config");
+const CONFIG_FILE = path.join(CONFIG_DIR, "matrix_config.md");
+
+// Ensure config directory exists
+if (!fs.existsSync(CONFIG_DIR)) {
+  fs.mkdirSync(CONFIG_DIR, { recursive: true });
+}
 
 app.use(cors());
 app.use(express.json());
@@ -41,6 +47,16 @@ app.post("/api/matrix/connect", async (req, res) => {
     await bridge.connectMatrix(req.body);
     saveConfig(req.body);
     res.json({ status: "connected" });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post("/api/matrix/create-room", async (req, res) => {
+  const { userId } = req.body;
+  try {
+    const roomId = await bridge.createPrivateChat(userId);
+    res.json({ roomId });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }

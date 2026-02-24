@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Shield, Activity, Send, CheckCircle2, AlertCircle, Loader2, Settings2, Terminal } from "lucide-react";
+import { MessageSquare, Shield, Activity, Send, CheckCircle2, AlertCircle, Loader2, Settings2, Terminal } from "lucide-react";
 import { io, Socket } from "socket.io-client";
 import { OpenClawPatch } from "./plugin/OpenClawPatch";
 
@@ -65,6 +65,31 @@ export default function App() {
       setStatus("disconnected");
       setError(err.message);
       addLog(`Error: ${err.message}`, "error");
+    }
+  };
+
+  const [newChatUserId, setNewChatUserId] = useState("");
+  const [isCreatingRoom, setIsCreatingRoom] = useState(false);
+
+  const handleCreateRoom = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newChatUserId) return;
+    setIsCreatingRoom(true);
+    addLog(`Matrix: Creating private room with ${newChatUserId}...`);
+    try {
+      const res = await fetch("/api/matrix/create-room", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: newChatUserId })
+      });
+      if (!res.ok) throw new Error((await res.json()).error || "Failed");
+      const data = await res.json();
+      addLog(`Matrix: Room created! ID: ${data.roomId}`, "success");
+      setNewChatUserId("");
+    } catch (err: any) {
+      addLog(`Error: ${err.message}`, "error");
+    } finally {
+      setIsCreatingRoom(false);
     }
   };
 
@@ -171,6 +196,36 @@ export default function App() {
                 {status === 'connected' ? 'Update Connection' : 'Initialize Plugin'}
               </button>
             </form>
+
+            {status === 'connected' && (
+              <div className="mt-8 pt-8 border-t border-zinc-800 space-y-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <MessageSquare className="w-5 h-5 text-emerald-500" />
+                  <h2 className="text-lg font-semibold">Start Private Chat</h2>
+                </div>
+                <form onSubmit={handleCreateRoom} className="space-y-4">
+                  <div className="space-y-1.5">
+                    <label className="text-xs uppercase tracking-widest text-zinc-500 font-bold">Target User ID</label>
+                    <input 
+                      type="text" 
+                      value={newChatUserId}
+                      onChange={e => setNewChatUserId(e.target.value)}
+                      className="w-full bg-black border border-zinc-800 rounded-lg px-4 py-2.5 focus:outline-none focus:border-emerald-500/50 transition-colors"
+                      placeholder="@user:matrix.org"
+                      required
+                    />
+                  </div>
+                  <button 
+                    type="submit"
+                    disabled={isCreatingRoom}
+                    className="w-full bg-zinc-800 hover:bg-zinc-700 text-white font-bold py-2 rounded-lg transition-all flex items-center justify-center gap-2"
+                  >
+                    {isCreatingRoom ? <Loader2 className="w-4 h-4 animate-spin" /> : <MessageSquare className="w-4 h-4" />}
+                    Create Private Room
+                  </button>
+                </form>
+              </div>
+            )}
           </div>
 
           <div className="bg-zinc-900/30 border border-zinc-800/50 rounded-2xl p-6">
