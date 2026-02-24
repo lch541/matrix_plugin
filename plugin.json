@@ -1,0 +1,47 @@
+{
+  "id": "openclaw-matrix-plugin",
+  "name": "Matrix Communication Bridge",
+  "version": "1.0.0",
+  "description": "Connect OpenClaw to Matrix with E2EE support, typing indicators, and real-time operation updates.",
+  "author": "OpenClaw Team",
+  "entryPoint": "server.ts",
+  "type": "communication_bridge",
+  "onboarding": {
+    "steps": [
+      {
+        "id": "matrix_config",
+        "title": "Matrix Configuration",
+        "description": "Configure your Matrix homeserver and bot credentials.",
+        "fields": [
+          {
+            "name": "homeserver",
+            "label": "Homeserver URL",
+            "type": "string",
+            "default": "https://matrix.org"
+          },
+          {
+            "name": "userId",
+            "label": "Bot User ID",
+            "type": "string",
+            "placeholder": "@bot:matrix.org"
+          },
+          {
+            "name": "accessToken",
+            "label": "Access Token",
+            "type": "password"
+          },
+          {
+            "name": "roomId",
+            "label": "Target Room ID",
+            "type": "string",
+            "placeholder": "!room:matrix.org"
+          }
+        ]
+      }
+    ]
+  },
+  "permissions": [
+    "network",
+    "storage"
+  ]
+}
