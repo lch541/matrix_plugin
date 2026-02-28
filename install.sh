@@ -96,45 +96,52 @@ if [ -f "$OPENCLAW_CONFIG" ]; then
     cat > "$PLUGIN_DIR/update_config.cjs" << 'EOF'
 const fs = require('fs');
 const path = process.argv[2];
-const homeserver = process.argv[3];
-const userId = process.argv[4];
-const accessToken = process.argv[5];
-const roomId = process.argv[6];
+const pluginDir = process.argv[3];
+const homeserver = process.argv[4];
+const userId = process.argv[5];
+const accessToken = process.argv[6];
+const roomId = process.argv[7];
 
 try {
   let content = fs.readFileSync(path, 'utf8');
   
-  // 移除旧的 plugins.installs 配置 (支持最多1层嵌套的 {} 匹配，以及旧的无嵌套匹配)
+  // 移除旧的 channels.matrix 配置（如果有，防止冲突）
+  const regexChannel = /"matrix"\s*:\s*\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}\s*,?/g;
+  content = content.replace(regexChannel, '');
+  
+  // 移除旧的 plugins.installs 配置
   const regexNested = /"@openclaw\/matrix-plugin"\s*:\s*\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}\s*,?/g;
   const regexFlat = /"@openclaw\/matrix-plugin"\s*:\s*\{[^}]*\}\s*,?/g;
   content = content.replace(regexNested, '');
   content = content.replace(regexFlat, '');
   
-  // 移除旧的 channels.matrix 配置（如果有）
-  const regexChannel = /"matrix"\s*:\s*\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}\s*,?/g;
-  content = content.replace(regexChannel, '');
-  
-  // OpenClaw 官方要求的正确信道 (Channel) 配置格式
-  const channelEntry = `"matrix": {
-      "enabled": true,
-      "homeserver": "${homeserver}",
-      "userId": "${userId}",
-      "accessToken": "${accessToken}",
-      "roomId": "${roomId}"
+  // 正确的本地插件注册格式：伪装成 npm 包，使用 file:// 协议
+  const pluginEntry = `"@openclaw/matrix-plugin": {
+      "source": "npm",
+      "version": "file://${pluginDir}",
+      "config": {
+        "homeserver": "${homeserver}",
+        "userId": "${userId}",
+        "accessToken": "${accessToken}",
+        "roomId": "${roomId}"
+      }
     }`;
   
-  if (/"channels"\s*:/.test(content)) {
-    // 存在 channels 节点
-    content = content.replace(/"channels"\s*:\s*\{/, `"channels": {\n      ${channelEntry},`);
+  if (/"installs"\s*:/.test(content)) {
+    // 存在 installs 节点
+    content = content.replace(/"installs"\s*:\s*\{/, `"installs": {\n      ${pluginEntry},`);
+  } else if (/"plugins"\s*:/.test(content)) {
+    // 存在 plugins 节点，但没有 installs
+    content = content.replace(/"plugins"\s*:\s*\{/, `"plugins": {\n    "installs": {\n      ${pluginEntry}\n    },`);
   } else {
-    // 连 channels 节点都没有，插入到文件末尾的 } 之前
+    // 连 plugins 节点都没有，插入到文件末尾的 } 之前
     const lastBrace = content.lastIndexOf('}');
     if (lastBrace !== -1) {
       const beforeBrace = content.slice(0, lastBrace).trim();
       const needsComma = !beforeBrace.endsWith(',') && !beforeBrace.endsWith('{');
       const prefix = needsComma ? ',' : '';
       
-      const insertStr = `${prefix}\n  "channels": {\n    ${channelEntry}\n  }\n`;
+      const insertStr = `${prefix}\n  "plugins": {\n    "installs": {\n      ${pluginEntry}\n    }\n  }\n`;
       content = content.slice(0, lastBrace) + insertStr + content.slice(lastBrace);
     } else {
       throw new Error("Invalid JSON format: missing closing brace.");
@@ -145,27 +152,25 @@ try {
   content = content.replace(/,\s*,/g, ',');
   
   fs.writeFileSync(path, content, 'utf8');
-  console.log('[成功] 已将 Matrix 配置注册到 openclaw.json 的 channels 节点');
+  console.log('[成功] 已将插件注册到 openclaw.json 的 plugins.installs 节点');
 } catch (e) {
   console.error('[错误] 修改配置文件失败:', e.message);
 }
 EOF
     
-    node "$PLUGIN_DIR/update_config.cjs" "$OPENCLAW_CONFIG" "$HOMESERVER" "$USER_ID" "$ACCESS_TOKEN" "$ROOM_ID"
+    node "$PLUGIN_DIR/update_config.cjs" "$OPENCLAW_CONFIG" "$PLUGIN_DIR" "$HOMESERVER" "$USER_ID" "$ACCESS_TOKEN" "$ROOM_ID"
     rm -f "$PLUGIN_DIR/update_config.cjs"
 else
     echo "[提示] 未找到 openclaw.json，跳过自动注册。"
 fi
 
-# 7. 启用插件并运行 OpenClaw Doctor 修复潜在的配置错误
+# 7. 运行 OpenClaw Doctor 修复潜在的配置错误
 echo ""
-echo ">>> 步骤 7: 启用插件并运行 openclaw doctor --fix"
+echo ">>> 步骤 7: 运行 openclaw doctor --fix"
 if command -v openclaw &> /dev/null; then
-    openclaw plugins enable matrix || openclaw plugins enable @openclaw/matrix-plugin || true
     openclaw doctor --fix || true
 else
     # 尝试使用 npx 运行
-    npx -y @openclaw/cli plugins enable matrix || npx -y @openclaw/cli plugins enable @openclaw/matrix-plugin || true
     npx -y @openclaw/cli doctor --fix || true
 fi
 
