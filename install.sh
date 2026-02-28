@@ -104,7 +104,9 @@ try {
   // 如果已经存在，先移除旧的
   content = content.replace(/"@openclaw\/matrix-plugin"\s*:\s*\{[^}]*\}\s*,?/g, '');
   
-  const pluginEntry = `"@openclaw/matrix-plugin": { "source": "local", "path": "${pluginDir}" }`;
+  // OpenClaw 要求的本地插件格式: { "source": "file", "url": "file:///path/to/plugin" }
+  // 注意：确保路径是绝对路径，并且带有 file:// 前缀
+  const pluginEntry = `"@openclaw/matrix-plugin": { "source": "file", "url": "file://${pluginDir}" }`;
   
   if (/"installs"\s*:/.test(content)) {
     // 存在 installs 节点
