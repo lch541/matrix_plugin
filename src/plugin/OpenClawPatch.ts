@@ -20,13 +20,6 @@ export class OpenClawPatch {
       
       this.socket.emit("openclaw_typing", { isTyping: true });
 
-      const operations = ["🔍 Analyzing context...", "🧠 Thinking...", "✅ Finalizing..."];
-      for (const op of operations) {
-        onLog(`Operation: ${op}`, "ai");
-        this.socket.emit("openclaw_update", { update: op });
-        await new Promise(r => setTimeout(r, 800));
-      }
-
       const result = await this.ai.models.generateContent({
         model,
         contents: [{ role: "user", parts: [{ text: `You are OpenClaw. Respond to: ${text}` }] }],

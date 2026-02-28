@@ -110,6 +110,10 @@ if (isMainModule) {
 // Export for OpenClaw plugin system
 export default class OpenClawMatrixPlugin {
   private bridge: Bridge;
+  private isVerbose: boolean = false;
+  private updateTimer: NodeJS.Timeout | null = null;
+  private lastUpdateText: string = "";
+  private isProcessing: boolean = false;
   
   constructor(private openclawContext: any) {
     this.bridge = new Bridge();
@@ -117,6 +121,19 @@ export default class OpenClawMatrixPlugin {
     // 1. Matrix -> OpenClaw (Receive all messages including / commands)
     this.bridge.on("matrix_message", async ({ sender, body }) => {
       console.log(`[Matrix -> OpenClaw] ${sender}: ${body}`);
+      
+      // Handle internal plugin commands
+      if (body.trim().toLowerCase() === "/verbose on") {
+        this.isVerbose = true;
+        this.bridge.sendToMatrix("Verbose mode enabled. You will see detailed operation statuses for long tasks.");
+        return;
+      } else if (body.trim().toLowerCase() === "/verbose off") {
+        this.isVerbose = false;
+        this.bridge.sendToMatrix("Verbose mode disabled. Chat will remain clean.");
+        return;
+      }
+
+      this.isProcessing = true;
       // Try standard OpenClaw plugin API patterns to inject the message
       if (this.openclawContext?.emit) {
         this.openclawContext.emit("message", { platform: "matrix", sender, text: body });
@@ -131,6 +148,11 @@ export default class OpenClawMatrixPlugin {
     if (this.openclawContext?.on) {
       // Listen for text responses
       this.openclawContext.on("send_message", (data: any) => {
+        this.isProcessing = false;
+        if (this.updateTimer) {
+          clearTimeout(this.updateTimer);
+          this.updateTimer = null;
+        }
         const text = typeof data === "string" ? data : data.text || data.response;
         if (text) this.bridge.sendToMatrix(text);
       });
@@ -140,11 +162,27 @@ export default class OpenClawMatrixPlugin {
         const isTyping = typeof data === "boolean" ? data : data.isTyping;
         this.bridge.setTyping(!!isTyping);
       });
-
+      
       // Listen for system updates/notices
       this.openclawContext.on("system_update", (data: any) => {
+        // Only process system updates if verbose mode is enabled
+        if (!this.isVerbose) return;
+
         const text = typeof data === "string" ? data : data.update || data.text;
-        if (text) this.bridge.sendNotice(text);
+        if (text && this.isProcessing) {
+          this.lastUpdateText = text;
+          
+          // Only send notice if the operation takes longer than 3 seconds
+          if (!this.updateTimer) {
+            this.updateTimer = setTimeout(() => {
+              if (this.isProcessing && this.lastUpdateText) {
+                this.bridge.sendNotice(this.lastUpdateText);
+                // Reset timer to allow subsequent long-running updates to be sent
+                this.updateTimer = null;
+              }
+            }, 3000);
+          }
+        }
       });
     }
   }
