@@ -96,17 +96,30 @@ if [ -f "$OPENCLAW_CONFIG" ]; then
     cat > "$PLUGIN_DIR/update_config.cjs" << 'EOF'
 const fs = require('fs');
 const path = process.argv[2];
-const pluginDir = process.argv[3];
+const homeserver = process.argv[3];
+const userId = process.argv[4];
+const accessToken = process.argv[5];
+const roomId = process.argv[6];
 
 try {
   let content = fs.readFileSync(path, 'utf8');
   
-  // 如果已经存在，先移除旧的
-  content = content.replace(/"@openclaw\/matrix-plugin"\s*:\s*\{[^}]*\}\s*,?/g, '');
+  // 移除旧的配置 (支持最多1层嵌套的 {} 匹配，以及旧的无嵌套匹配)
+  const regexNested = /"@openclaw\/matrix-plugin"\s*:\s*\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}\s*,?/g;
+  const regexFlat = /"@openclaw\/matrix-plugin"\s*:\s*\{[^}]*\}\s*,?/g;
+  content = content.replace(regexNested, '');
+  content = content.replace(regexFlat, '');
   
-  // OpenClaw 要求的本地插件格式: { "source": "file", "url": "file:///path/to/plugin" }
-  // 注意：确保路径是绝对路径，并且带有 file:// 前缀
-  const pluginEntry = `"@openclaw/matrix-plugin": { "source": "file", "url": "file://${pluginDir}" }`;
+  // OpenClaw 官方要求的正确配置格式
+  const pluginEntry = `"@openclaw/matrix-plugin": {
+      "enabled": true,
+      "config": {
+        "homeserver": "${homeserver}",
+        "userId": "${userId}",
+        "accessToken": "${accessToken}",
+        "roomId": "${roomId}"
+      }
+    }`;
   
   if (/"installs"\s*:/.test(content)) {
     // 存在 installs 节点
@@ -139,8 +152,8 @@ try {
 }
 EOF
     
-    node "$PLUGIN_DIR/update_config.cjs" "$OPENCLAW_CONFIG" "$PLUGIN_DIR"
-    rm "$PLUGIN_DIR/update_config.cjs"
+    node "$PLUGIN_DIR/update_config.cjs" "$OPENCLAW_CONFIG" "$HOMESERVER" "$USER_ID" "$ACCESS_TOKEN" "$ROOM_ID"
+    rm -f "$PLUGIN_DIR/update_config.cjs"
 else
     echo "[提示] 未找到 openclaw.json，跳过自动注册。"
 fi

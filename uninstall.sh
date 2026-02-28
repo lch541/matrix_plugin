@@ -38,14 +38,15 @@ const path = process.argv[2];
 try {
   let content = fs.readFileSync(path, 'utf8');
   
-  // 匹配插件配置并移除，包括可能的前导逗号或尾随逗号
-  const regex1 = /,\s*"@openclaw\/matrix-plugin"\s*:\s*\{[^}]*\}/g;
-  const regex2 = /"@openclaw\/matrix-plugin"\s*:\s*\{[^}]*\}\s*,/g;
-  const regex3 = /"@openclaw\/matrix-plugin"\s*:\s*\{[^}]*\}/g;
+  // 匹配插件配置并移除，支持嵌套的 {} 匹配
+  const regexNested = /"@openclaw\/matrix-plugin"\s*:\s*\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}\s*,?/g;
+  const regexFlat = /"@openclaw\/matrix-plugin"\s*:\s*\{[^}]*\}\s*,?/g;
   
-  content = content.replace(regex1, '');
-  content = content.replace(regex2, '');
-  content = content.replace(regex3, '');
+  content = content.replace(regexNested, '');
+  content = content.replace(regexFlat, '');
+  
+  // 清理可能产生的多余逗号
+  content = content.replace(/,\s*,/g, ',');
   
   fs.writeFileSync(path, content, 'utf8');
   console.log('[成功] 已从 openclaw.json 移除插件注册信息。');

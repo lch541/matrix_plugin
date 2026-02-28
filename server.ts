@@ -189,7 +189,13 @@ export default class OpenClawMatrixPlugin {
 
   async start() {
     console.log("Matrix Plugin started by OpenClaw");
-    const config = loadConfig();
+    
+    // 优先使用 OpenClaw 注入的配置，如果没有则回退到本地的 matrix_config.md
+    let config = this.openclawContext?.config;
+    if (!config || !config.accessToken) {
+      config = loadConfig();
+    }
+    
     if (config?.accessToken) {
       console.log("Matrix config found, connecting...");
       try {
@@ -199,7 +205,7 @@ export default class OpenClawMatrixPlugin {
         console.error("Matrix connection failed:", e);
       }
     } else {
-      console.log("Matrix config not found. Please configure via UI.");
+      console.log("Matrix config not found. Please configure via UI or openclaw.json.");
     }
   }
 
