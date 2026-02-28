@@ -137,9 +137,12 @@ fi
 echo ""
 echo ">>> 步骤 7: 运行 openclaw doctor --fix"
 if command -v openclaw &> /dev/null; then
+    # 确保 gateway.mode 已设置，否则 OpenClaw 会拒绝启动
+    openclaw config set gateway.mode local || true
     openclaw doctor --fix || true
 else
     # 尝试使用 npx 运行
+    npx -y @openclaw/cli config set gateway.mode local || true
     npx -y @openclaw/cli doctor --fix || true
 fi
 
