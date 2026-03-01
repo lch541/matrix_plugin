@@ -2,14 +2,12 @@ const VERBOSE_ENABLE_KEYWORDS = [
   '进度条模式已开启',
   'verbose mode enabled',
   'verbose on',
-  'verbose: on',
 ];
 
 const VERBOSE_DISABLE_KEYWORDS = [
   '进度条模式已关闭',
   'verbose mode disabled',
   'verbose off',
-  'verbose: off',
 ];
 
 export function detectVerboseState(message: string): 'enable' | 'disable' | null {
@@ -25,21 +23,21 @@ export function detectVerboseState(message: string): 'enable' | 'disable' | null
 }
 
 interface ProgressState {
-  enabled: boolean;
+  progressEnabled: boolean;
   currentMessageId: string | null;
   currentRoomId: string | null;
 }
 
 class ProgressStateManager {
   private state: ProgressState = {
-    enabled: false,
+    progressEnabled: false,
     currentMessageId: null,
     currentRoomId: null,
   };
 
-  enable() { this.state.enabled = true; }
-  disable() { this.state.enabled = false; }
-  isEnabled() { return this.state.enabled; }
+  enable() { this.state.progressEnabled = true; }
+  disable() { this.state.progressEnabled = false; }
+  isEnabled() { return this.state.progressEnabled; }
 
   setCurrentMessage(roomId: string, messageId: string) {
     this.state.currentRoomId = roomId;

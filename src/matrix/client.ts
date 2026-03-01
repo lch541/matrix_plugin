@@ -96,6 +96,22 @@ export class MatrixClientWrapper {
     this.unreadEvents = [];
   }
 
+  public injectUserMessage(roomId: string, body: string, sender: string) {
+    const event = {
+      type: "m.room.message",
+      room_id: roomId,
+      sender: sender,
+      content: {
+        msgtype: "m.text",
+        body: body,
+      },
+      origin_server_ts: Date.now(),
+      event_id: `$injected_${Date.now()}`,
+    };
+    this.unreadEvents.push({ roomId, event });
+    this.syncEmitter.emit("new_event");
+  }
+
   public getNextBatchToken() {
     return this.nextBatchToken;
   }

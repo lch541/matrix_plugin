@@ -15,10 +15,38 @@ export function setupCommandListener() {
     if (content.msgtype !== "m.text") return;
     
     const body = content.body?.trim();
-    if (!body || !body.startsWith("openclaw ")) return;
+    if (!body) return;
 
     const roomId = room.roomId;
+    const sender = event.getSender();
     const parts = body.split(/\s+/);
+
+    // 1. 拦截 /progress 命令
+    if (body.startsWith("/progress ")) {
+      const subCmd = parts[1]; // on / off
+      const { progressState } = await import("../progress/state.js");
+
+      if (subCmd === "on") {
+        // 转换为 verbose on 并发送给 OpenClaw
+        matrixClient.injectUserMessage(roomId, "/verbose on", sender);
+        progressState.enable();
+        await matrixClient.sendMessage(roomId, "✅ 进度条模式已开启");
+      } else if (subCmd === "off") {
+        // 转换为 verbose off 并发送给 OpenClaw
+        matrixClient.injectUserMessage(roomId, "/verbose off", sender);
+        progressState.disable();
+        await matrixClient.sendMessage(roomId, "⚪ 进度条模式已关闭");
+      }
+      return;
+    }
+
+    // 2. /verbose 命令不拦截，直接转发给 OpenClaw
+    if (body.startsWith("/verbose ")) {
+      matrixClient.injectUserMessage(roomId, body, sender);
+      return;
+    }
+
+    if (!body.startsWith("openclaw ")) return;
     const cmd = parts[1];
     const subCmd = parts[2];
 
