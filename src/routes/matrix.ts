@@ -2,7 +2,7 @@ import { Router } from "express";
 import { matrixClient } from "../matrix/client.js";
 import { config } from "../config.js";
 import { logger } from "../utils/logger.js";
-import { progressState } from "../progress/state.js";
+import { progressState, detectVerboseState } from "../progress/state.js";
 import { formatProgressBar } from "../progress/bar.js";
 
 const router = Router();
@@ -63,7 +63,19 @@ router.put(["/rooms/:roomId/send/:eventType/:txnId", "/v3/rooms/:roomId/send/:ev
   const content = req.body;
   const client = matrixClient.getClient();
 
-  // 进度条逻辑
+  // 1. 检测 verbose 状态变化
+  if (content.body) {
+    const stateChange = detectVerboseState(content.body);
+    if (stateChange === 'enable') {
+      progressState.enable();
+      logger.info("自动检测到 Verbose 模式开启");
+    } else if (stateChange === 'disable') {
+      progressState.disable();
+      logger.info("自动检测到 Verbose 模式关闭");
+    }
+  }
+
+  // 2. 进度条逻辑
   if (progressState.isEnabled() && eventType === "m.room.message" && content.msgtype === "m.text") {
     const body = content.body || "";
     const { messageId: currentMessageId } = progressState.getCurrentMessage();
@@ -78,7 +90,9 @@ router.put(["/rooms/:roomId/send/:eventType/:txnId", "/v3/rooms/:roomId/send/:ev
       body.includes("Reading") ||
       body.includes("Analyzing") ||
       body.includes("Searching") ||
-      body.includes("Generating")
+      body.includes("Generating") ||
+      body.includes("Thinking") ||
+      body.includes("🔄")
     );
 
     if (isLog) {

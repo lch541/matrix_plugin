@@ -4,6 +4,7 @@ export function calculateProgress(operation: string): number {
   if (op.includes('reading') || op.includes('读取')) return 20;
   if (op.includes('analyzing') || op.includes('分析')) return 40;
   if (op.includes('searching') || op.includes('搜索')) return 50;
+  if (op.includes('thinking') || op.includes('🔄')) return 60;
   if (op.includes('generating') || op.includes('生成')) return 70;
   if (op.includes('sending') || op.includes('发送')) return 90;
   return 50; // 默认
