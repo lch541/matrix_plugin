@@ -13,20 +13,24 @@ PLUGIN_DIR="$OPENCLAW_DIR/extensions/matrix-plugin"
 echo ">>> 步骤 1: 停止本地 E2EE 代理服务"
 if command -v pm2 &> /dev/null; then
     pm2 delete matrix-e2ee-proxy &> /dev/null || true
+    pm2 delete openclaw-external-matrix &> /dev/null || true
     pm2 save &> /dev/null || true
-    echo "[成功] 已从 pm2 中移除 matrix-e2ee-proxy 服务。"
+    echo "[成功] 已从 pm2 中移除相关服务。"
 fi
 
-if systemctl --user is-active --quiet matrix-e2ee-proxy.service 2>/dev/null || systemctl --user is-enabled --quiet matrix-e2ee-proxy.service 2>/dev/null; then
-    systemctl --user stop matrix-e2ee-proxy.service || true
-    systemctl --user disable matrix-e2ee-proxy.service || true
-    rm -f "$HOME/.config/systemd/user/matrix-e2ee-proxy.service"
-    systemctl --user daemon-reload || true
-    echo "[成功] 已移除 systemd 中的 matrix-e2ee-proxy 服务。"
-fi
+for service in "matrix-e2ee-proxy.service" "openclaw-external-matrix.service"; do
+    if systemctl --user is-active --quiet "$service" 2>/dev/null || systemctl --user is-enabled --quiet "$service" 2>/dev/null; then
+        systemctl --user stop "$service" || true
+        systemctl --user disable "$service" || true
+        rm -f "$HOME/.config/systemd/user/$service"
+        echo "[成功] 已移除 systemd 中的 $service 服务。"
+    fi
+done
+systemctl --user daemon-reload || true
 
 # 尝试杀死后台进程 (兜底)
 pkill -f "matrix-e2ee-proxy" || true
+pkill -f "openclaw-external-matrix" || true
 echo "[提示] 已清理后台运行的代理进程。"
 
 # 2. 移除插件目录和相关文件

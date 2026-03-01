@@ -3,11 +3,11 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
-  "main": "server.ts",
+  "main": "src/server.ts",
   "scripts": {
-    "dev": "tsx server.ts",
+    "dev": "tsx src/server.ts",
     "build": "tsc",
-    "clean": "rm -rf .matrix_storage",
+    "clean": "rm -rf .matrix_storage config/revive_token",
     "lint": "tsc --noEmit"
   },
   "dependencies": {

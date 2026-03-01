@@ -15,8 +15,10 @@ echo ">>> 步骤 0: 深度清理旧的 Matrix 插件环境"
 # 停止旧进程
 if command -v pm2 &> /dev/null; then
     pm2 delete matrix-e2ee-proxy &> /dev/null || true
+    pm2 delete openclaw-external-matrix &> /dev/null || true
 fi
 pkill -f "matrix-e2ee-proxy" || true
+pkill -f "openclaw-external-matrix" || true
 pkill -f "matrix-plugin" || true
 
 # 移除旧插件目录
@@ -26,12 +28,14 @@ if [ -d "$PLUGIN_DIR" ]; then
 fi
 
 # 移除 systemd 服务残留
-if [ -f "$HOME/.config/systemd/user/matrix-e2ee-proxy.service" ]; then
-    systemctl --user stop matrix-e2ee-proxy.service &> /dev/null || true
-    systemctl --user disable matrix-e2ee-proxy.service &> /dev/null || true
-    rm -f "$HOME/.config/systemd/user/matrix-e2ee-proxy.service"
-    systemctl --user daemon-reload
-fi
+for service in "matrix-e2ee-proxy.service" "openclaw-external-matrix.service"; do
+    if [ -f "$HOME/.config/systemd/user/$service" ]; then
+        systemctl --user stop "$service" &> /dev/null || true
+        systemctl --user disable "$service" &> /dev/null || true
+        rm -f "$HOME/.config/systemd/user/$service"
+    fi
+done
+systemctl --user daemon-reload || true
 
 echo "[成功] 旧环境清理完成。"
 
@@ -183,23 +187,23 @@ echo ">>> 步骤 8: 启动本地 E2EE 代理服务并设置开机自启"
 cd "$PLUGIN_DIR"
 if command -v pm2 &> /dev/null; then
     # 使用 pm2 启动代理服务
-    pm2 delete matrix-e2ee-proxy &> /dev/null || true
-    pm2 start npm --name "matrix-e2ee-proxy" -- run dev
+    pm2 delete openclaw-external-matrix &> /dev/null || true
+    pm2 start npm --name "openclaw-external-matrix" -- run dev
     pm2 save
-    echo "[成功] 已通过 pm2 启动本地 E2EE 代理服务 (matrix-e2ee-proxy)。"
+    echo "[成功] 已通过 pm2 启动 OpenClaw External Matrix (openclaw-external-matrix)。"
     echo "[提示] 请确保您已经运行过 'pm2 startup' 以启用 pm2 的开机自启功能。"
 else
     # 如果没有 pm2，则使用 systemd 用户服务来实现开机自启
     echo "[提示] 未检测到 pm2，将使用 systemd 配置开机自启..."
     SERVICE_DIR="$HOME/.config/systemd/user"
     mkdir -p "$SERVICE_DIR"
-    SERVICE_FILE="$SERVICE_DIR/matrix-e2ee-proxy.service"
+    SERVICE_FILE="$SERVICE_DIR/openclaw-external-matrix.service"
     
     NPM_PATH=$(command -v npm)
     
     cat > "$SERVICE_FILE" << EOF
 [Unit]
-Description=Matrix E2EE Proxy for OpenClaw
+Description=OpenClaw External Matrix Proxy
 After=network.target
 
 [Service]
@@ -214,15 +218,15 @@ WantedBy=default.target
 EOF
 
     systemctl --user daemon-reload
-    systemctl --user enable matrix-e2ee-proxy.service
-    systemctl --user restart matrix-e2ee-proxy.service
+    systemctl --user enable openclaw-external-matrix.service
+    systemctl --user restart openclaw-external-matrix.service
     
     # 尝试启用 loginctl linger 以确保用户未登录时也能自启
     if command -v loginctl &> /dev/null; then
         loginctl enable-linger $USER || true
     fi
     
-    echo "[成功] 已通过 systemd 启动本地 E2EE 代理服务并设置开机自启。"
+    echo "[成功] 已通过 systemd 启动 OpenClaw External Matrix 并设置开机自启。"
 fi
 cd - > /dev/null
 
